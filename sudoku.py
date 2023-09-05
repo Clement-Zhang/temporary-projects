@@ -3,18 +3,12 @@ class Cell():
         self.value = value
 
 
-class DomainValue():
-    def __init__(self, value):
-        self.value = value
-        self.visited = False
-
-
 class EmptyCell(Cell):
     def __init__(self, location):
         super().__init__()
         self.location = location
-        self.domain = [DomainValue(1), DomainValue(2), DomainValue(3), DomainValue(
-            4), DomainValue(5), DomainValue(6), DomainValue(7), DomainValue(8), DomainValue(9)]
+        self.domain = [1,2,3,4,5,6,7,8,9]
+        self.visited_domain=[None,None,None,None,None,None,None,None,None]
         self.constraining_cells = []
         self.constraining_values = {1: 0, 2: 0,
                                     3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}
@@ -23,18 +17,12 @@ class EmptyCell(Cell):
     def set_value(self, value):
         self.value = value
         for cell in self.constraining_cells+[self]:
-            for domain_value in cell.domain:
-                if domain_value.value == value:
-                    domain_value.visited == True
-                    break
+            cell.visited_domain[value-1] = True
         self.visited = True
 
     def reset_value(self):
         for cell in self.constraining_cells+[self]:
-            for domain_value in cell.domain:
-                if domain_value.value == self.value:
-                    domain_value.visited == False
-                    break
+            cell.visited_domain[self.value-1] = False
         self.value = None
         self.visited = False
 
@@ -67,9 +55,9 @@ class Board():
                     present.append(self.board[i][j].value)
             for j in range(9):
                 if type(self.board[i][j]) == EmptyCell:
-                    for n in present:
-                        if n in self.board[i][j].domain:
-                            self.board[i][j].domain.remove(n)
+                    for value in [1,2,3,4,5,6,7,8,9]:
+                        if value in present and value in self.board[i][j].domain:
+                            self.board[i][j].domain.remove(value)
 
         # column constraint
         for i in range(9):
@@ -79,9 +67,9 @@ class Board():
                     present.append(self.board[j][i].value)
             for j in range(9):
                 if type(self.board[j][i]) == EmptyCell:
-                    for n in present:
-                        if n in self.board[j][i].domain:
-                            self.board[j][i].domain.remove(n)
+                    for value in [1,2,3,4,5,6,7,8,9]:
+                        if value in present and value in self.board[j][i].domain:
+                            self.board[j][i].domain.remove(value)
 
         # quadrant constraint
         for i in range(3):
@@ -94,9 +82,9 @@ class Board():
                 for k in range(3):
                     for l in range(3):
                         if type(self.board[3*i+k][3*j+l]) == EmptyCell:
-                            for n in present:
-                                if n in self.board[3*i+k][3*j+l].domain:
-                                    self.board[3*i+k][3*j+l].domain.remove(n)
+                            for value in [1,2,3,4,5,6,7,8,9]:
+                                if value in present and value in self.board[3*i+k][3*j+l].domain:
+                                    self.board[3*i+k][3*j+l].domain.remove(value)
 
     def set_constraining_cells(self):
         # rowwise
@@ -169,33 +157,47 @@ class Board():
                 if len(present) != 9:
                     return False
         print("board is validated")
-
-    def solve(self):
+    
+    def preprocess(self):
         self.set_variables()
-        self.set_constraints()
         self.set_constraining_cells()
         self.set_constraining_values()
         self.variables.sort(key=lambda cell: (
             len(cell.domain), -len(cell.constraining_cells)))
         for cell in self.variables:
-            cell.domain.sort(key=lambda domain_value: cell.constraining_values[domain_value.value])
+            cell.domain.sort(key=lambda value: cell.constraining_values[value])
+        self.set_constraints()
+    
+    def display(self):
+        board=[]
+        for i in range(9):
+            board.append([])
+            for j in range(9):
+                if self.board[i][j].value:
+                    board[i].append(self.board[i][j].value)
+                else:
+                    board[i].append(0)
+        for i in range(9):
+            print(board[i])
+    
+    def show_stuff(self):
+        for variable in self.variables:
+            print(variable.location)
+            print(variable.domain)
+            print(len(variable.constraining_cells))
+            for cell in variable.constraining_cells:
+                print(cell.location)
+            print(variable.constraining_values)
+            print(variable.visited_domain)
+
+    def solve(self):
+        self.preprocess()
         if self.backtracking():
-            for i in range(9):
-                for j in range(9):
-                    self.board[i][j] = self.board[i][j].value
-            for i in range(9):
-                print(self.board[i])
+            self.display()
         return True
 
     def debug(self):
-        self.set_variables()
-        self.set_constraints()
-        self.set_constraining_cells()
-        self.set_constraining_values()
-        self.variables.sort(key=lambda cell: (
-            len(cell.domain), -len(cell.constraining_cells)))
-        for cell in self.variables:
-            cell.domain.sort(key=lambda domain_value: cell.constraining_values[domain_value.value])
+        self.preprocess()
         self.backtracking(debug=1)
 
     def backtracking(self, depth=0, debug=0):
@@ -208,24 +210,27 @@ class Board():
             else:
                 return False
 
-        if depth == 1:
-            for variable in self.variables:
-                if not variable.visited and len([unvisited_domain_value for unvisited_domain_value in filter(lambda domain_value:not domain_value.visited,variable.domain)]) == 0:
+        if depth in []:
+            for variable in filter(lambda variable:not variable.visited,self.variables):
+                if len([unvisited_value for unvisited_value in filter(lambda value:not variable.visited_domain[value-1] and variable.constraining_values[value],variable.domain)]) == 0:
                     print("forward checking useful")
                     return False
             print("forward checking useless")
         for cell in self.variables:
             if not cell.visited:
-                for domain_value in cell.domain:
-                    if not domain_value.visited:
-                        # if debug:
-                        #     print("set location ",cell.location," to value ",value)
-                        cell.set_value(domain_value.value)
+                for value in cell.domain:
+                    if not cell.visited_domain[value-1]:
+                        if debug:
+                            self.show_stuff()
+                            print("set location ",cell.location," to value ",value)
+                        cell.set_value(value)
+                        if debug:
+                            self.display()
                         if self.backtracking(depth+1, debug=debug):
                             return True
                         cell.reset_value()
-                        # if debug:
-                        #     print("reset location ",cell.location)
+                        if debug:
+                            print("reset location ",cell.location)
         return False
 
 
