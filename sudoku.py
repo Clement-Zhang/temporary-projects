@@ -160,13 +160,13 @@ class Board():
     
     def preprocess(self):
         self.set_variables()
+        self.set_constraints()
         self.set_constraining_cells()
         self.set_constraining_values()
         self.variables.sort(key=lambda cell: (
             len(cell.domain), -len(cell.constraining_cells)))
         for cell in self.variables:
             cell.domain.sort(key=lambda value: cell.constraining_values[value])
-        self.set_constraints()
     
     def display(self):
         board=[]
@@ -180,7 +180,7 @@ class Board():
         for i in range(9):
             print(board[i])
     
-    def show_stuff(self):
+    def show_stuff(self,target=None):
         for variable in self.variables:
             print(variable.location)
             print(variable.domain)
@@ -204,6 +204,9 @@ class Board():
         if debug:
             input()
             print(depth)
+            if depth==48:
+                self.show_stuff()
+                self.display()
         if len([cell for cell in filter(lambda cell:not cell.visited, self.variables)]) == 0:
             if self.validate_board():
                 return True
@@ -220,17 +223,16 @@ class Board():
             if not cell.visited:
                 for value in cell.domain:
                     if not cell.visited_domain[value-1]:
-                        if debug:
-                            self.show_stuff()
-                            print("set location ",cell.location," to value ",value)
+                        # if debug:
+                        #     print("set location ",cell.location," to value ",value)
                         cell.set_value(value)
-                        if debug:
-                            self.display()
+                        # if debug:
+                        #     self.display()
                         if self.backtracking(depth+1, debug=debug):
                             return True
                         cell.reset_value()
-                        if debug:
-                            print("reset location ",cell.location)
+                        # if debug:
+                        #     print("reset location ",cell.location)
         return False
 
 
