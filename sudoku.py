@@ -85,6 +85,9 @@ class Board():
                             for value in [1,2,3,4,5,6,7,8,9]:
                                 if value in present and value in self.board[3*i+k][3*j+l].domain:
                                     self.board[3*i+k][3*j+l].domain.remove(value)
+        for variable in self.variables:
+            for value in variable.domain:
+                variable.visited_domain[value-1] = False
 
     def set_constraining_cells(self):
         # rowwise
@@ -135,28 +138,35 @@ class Board():
     def validate_board(self):
         # validate rows
         for i in range(9):
-            present = set()
+            present = []
             for j in range(9):
-                present.add(self.board[i][j].value)
-            if len(present) != 9:
+                if self.board[i][j].value!=None:
+                    present.append(self.board[i][j].value)
+            if len(present) != len(set(present)):
+                print("row",i,"is invalid")
                 return False
         # validate columns
         for i in range(9):
-            present = set()
+            present = []
             for j in range(9):
-                present.add(self.board[j][i].value)
-            if len(present) != 9:
+                if self.board[j][i].value!=None:
+                    present.append(self.board[j][i].value)
+            if len(present) != len(set(present)):
+                print("column",i,"is invalid")
                 return False
         # validate quadrants
         for i in range(3):
             for j in range(3):
-                present = set()
+                present = []
                 for k in range(3):
                     for l in range(3):
-                        present.add(self.board[3*i+k][3*j+l].value)
-                if len(present) != 9:
+                        if self.board[3*i+k][3*j+l].value!=None:
+                            present.append(self.board[3*i+k][3*j+l].value)
+                if len(present) != len(set(present)):
+                    print("quadrant",i,j,"is invalid")
                     return False
         print("board is validated")
+        return True
     
     def preprocess(self):
         self.set_variables()
@@ -180,15 +190,18 @@ class Board():
         for i in range(9):
             print(board[i])
     
-    def show_stuff(self,target=None):
-        for variable in self.variables:
-            print(variable.location)
-            print(variable.domain)
-            print(len(variable.constraining_cells))
-            for cell in variable.constraining_cells:
+    def show_stuff(self,targets=[]):
+        if len(targets)==0:
+            targets=self.variables
+        for target in targets:
+            target=self.board[target[0]][target[1]]
+            print(target.location)
+            print(target.domain)
+            print(len(target.constraining_cells))
+            for cell in target.constraining_cells:
                 print(cell.location)
-            print(variable.constraining_values)
-            print(variable.visited_domain)
+            print(target.constraining_values)
+            print(target.visited_domain)
 
     def solve(self):
         self.preprocess()
@@ -204,8 +217,8 @@ class Board():
         if debug:
             input()
             print(depth)
-            if depth==48:
-                self.show_stuff()
+            if depth==46:
+                self.show_stuff([(2,1),(2,7)])
                 self.display()
         if len([cell for cell in filter(lambda cell:not cell.visited, self.variables)]) == 0:
             if self.validate_board():
@@ -213,28 +226,26 @@ class Board():
             else:
                 return False
 
-        if depth in []:
-            for variable in filter(lambda variable:not variable.visited,self.variables):
-                if len([unvisited_value for unvisited_value in filter(lambda value:not variable.visited_domain[value-1] and variable.constraining_values[value],variable.domain)]) == 0:
-                    print("forward checking useful")
-                    return False
-            print("forward checking useless")
+        # if depth in range(30,40):#21,24,27
+        #     for variable in filter(lambda variable:not variable.visited,self.variables):
+        #         if len([unvisited_value for unvisited_value in filter(lambda value:variable.visited_domain[value-1]==False,variable.domain)]) == 0:
+        #             print("forward checking useful")
+        #             return False
+        #     print("forward checking useless")
         for cell in self.variables:
             if not cell.visited:
                 for value in cell.domain:
-                    if not cell.visited_domain[value-1]:
+                    if cell.visited_domain[value-1]==False:
                         # if debug:
                         #     print("set location ",cell.location," to value ",value)
                         cell.set_value(value)
                         # if debug:
-                        #     self.display()
                         if self.backtracking(depth+1, debug=debug):
                             return True
                         cell.reset_value()
                         # if debug:
                         #     print("reset location ",cell.location)
         return False
-
 
 Board([[None, 7, 1, 4, None, None, None, 3, None],
        [None, None, None, None, 7, None, None, None, 8],
