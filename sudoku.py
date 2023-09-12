@@ -17,12 +17,14 @@ class EmptyCell(Cell):
     def set_value(self, value):
         self.value = value
         for cell in self.constraining_cells+[self]:
-            cell.visited_domain[value-1] = True
+            if value in cell.domain:
+                cell.visited_domain[value-1] +=1
         self.visited = True
 
     def reset_value(self):
         for cell in self.constraining_cells+[self]:
-            cell.visited_domain[self.value-1] = False
+            if self.value in cell.domain:
+                cell.visited_domain[self.value-1] -=1
         self.value = None
         self.visited = False
 
@@ -87,7 +89,7 @@ class Board():
                                     self.board[3*i+k][3*j+l].domain.remove(value)
         for variable in self.variables:
             for value in variable.domain:
-                variable.visited_domain[value-1] = False
+                variable.visited_domain[value-1] = 0
 
     def set_constraining_cells(self):
         # rowwise
@@ -215,36 +217,37 @@ class Board():
 
     def backtracking(self, depth=0, debug=0):
         if debug:
-            input()
+            # input()
             print(depth)
-            if depth==46:
-                self.show_stuff([(2,1),(2,7)])
-                self.display()
+            if not self.validate_board():
+                quit()
         if len([cell for cell in filter(lambda cell:not cell.visited, self.variables)]) == 0:
             if self.validate_board():
                 return True
             else:
                 return False
 
-        # if depth in range(30,40):#21,24,27
-        #     for variable in filter(lambda variable:not variable.visited,self.variables):
-        #         if len([unvisited_value for unvisited_value in filter(lambda value:variable.visited_domain[value-1]==False,variable.domain)]) == 0:
-        #             print("forward checking useful")
-        #             return False
-        #     print("forward checking useless")
+        if depth >=10:
+            for variable in filter(lambda variable:not variable.visited,self.variables):
+                if len([unvisited_value for unvisited_value in filter(lambda value:variable.visited_domain[value-1]==0,variable.domain)]) == 0:
+                    return False
         for cell in self.variables:
             if not cell.visited:
                 for value in cell.domain:
-                    if cell.visited_domain[value-1]==False:
-                        # if debug:
-                        #     print("set location ",cell.location," to value ",value)
+                    if cell.visited_domain[value-1]==0:
                         cell.set_value(value)
-                        # if debug:
+                        # if debug and depth in [45,46,47]:
+                        #     print("set location ",cell.location," to value ",value)
+                        #     self.display()
                         if self.backtracking(depth+1, debug=debug):
                             return True
-                        cell.reset_value()
                         # if debug:
-                        #     print("reset location ",cell.location)
+                        #     print("go back to depth ",depth)
+                        cell.reset_value()
+                        # if debug and depth in [45,46,47]:
+                        #     print("reset location ",cell.location," and value ",value)
+                        #     self.display()
+                        #     input()
         return False
 
 Board([[None, 7, 1, 4, None, None, None, 3, None],
@@ -255,4 +258,4 @@ Board([[None, 7, 1, 4, None, None, None, 3, None],
        [None, None, 7, None, None, 3, None, None, 5],
        [None, None, 2, None, None, 6, None, None, 9],
        [6, None, None, None, 8, None, None, None, None],
-       [None, 1, None, None, None, 2, 7, 8, None]]).debug()
+       [None, 1, None, None, None, 2, 7, 8, None]]).solve()
